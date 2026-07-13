@@ -5,8 +5,6 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -78,20 +76,11 @@ fun AppScreen() {
     val context = LocalContext.current
     val termuxBridge = remember { TermuxBridge(context) }
     val scope = rememberCoroutineScope()
-    val handler = remember { Handler(Looper.getMainLooper()) }
-    val prefs = remember { context.getSharedPreferences("opencode_prefs", Context.MODE_PRIVATE) }
 
     var step by remember { mutableIntStateOf(0) }
     // 0=checking, 1=need_termux, 2=need_permission, 3=installing, 4=starting, 5=ready, 6=error
     var statusText by remember { mutableStateOf("Checking...") }
     var logLines by remember { mutableStateOf(listOf<String>()) }
-    var pollRunnable by remember { mutableStateOf<Runnable?>(null) }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            pollRunnable?.let { handler.removeCallbacks(it) }
-        }
-    }
 
     fun log(msg: String) {
         logLines = logLines + msg
@@ -116,40 +105,29 @@ fun AppScreen() {
     }
 
     fun pollServer() {
-        var attempts = 0
-        val checkRunnable = object : Runnable {
-            override fun run() {
-                attempts++
-                statusText = "Waiting for server... ($attempts/40)"
-                scope.launch {
-                    var serverUp = false
-                    try {
-                        val url = URL("http://localhost:3000")
-                        val conn = url.openConnection() as HttpURLConnection
-                        conn.connectTimeout = 3000
-                        conn.readTimeout = 3000
-                        conn.connect()
-                        val code = conn.responseCode
-                        conn.disconnect()
-                        if (code in 200..399) {
-                            serverUp = true
-                        }
-                    } catch (_: Exception) {}
-                    if (serverUp) {
+        scope.launch {
+            for (attempt in 1..40) {
+                delay(2000)
+                statusText = "Waiting for server... ($attempt/40)"
+                try {
+                    val url = URL("http://localhost:3000")
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.connectTimeout = 3000
+                    conn.readTimeout = 3000
+                    conn.connect()
+                    val code = conn.responseCode
+                    conn.disconnect()
+                    if (code in 200..399) {
                         step = 5
                         statusText = "Ready!"
-                    } else if (attempts < 40) {
-                        handler.postDelayed(checkRunnable, 2000)
-                    } else {
-                        step = 6
-                        statusText = "Server did not start"
-                        log("Server failed to respond after 40 attempts")
+                        return@launch
                     }
-                }
+                } catch (_: Exception) {}
             }
+            step = 6
+            statusText = "Server did not start"
+            log("Server failed to respond after 40 attempts")
         }
-        pollRunnable = checkRunnable
-        handler.postDelayed(checkRunnable, 3000)
     }
 
     fun startServer() {
@@ -194,11 +172,13 @@ fun AppScreen() {
         log("Install commands sent. Waiting ~90 seconds...")
         statusText = "Installing... (this takes ~1 min)"
 
-        handler.postDelayed({
-            prefs.edit().putBoolean("setup_complete", true).apply()
+        scope.launch {
+            delay(90000)
+            context.getSharedPreferences("opencode_prefs", Context.MODE_PRIVATE)
+                .edit().putBoolean("setup_complete", true).apply()
             log("Setup marked complete")
             startServer()
-        }, 90000)
+        }
     }
 
     fun begin() {
