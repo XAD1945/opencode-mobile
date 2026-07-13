@@ -44,6 +44,7 @@ class WebViewActivity : ComponentActivity() {
         val serverUrl = intent.getStringExtra("server_url") ?: "http://localhost:3000"
         val apiKey = intent.getStringExtra("api_key") ?: ""
         val useTermux = intent.getBooleanExtra("use_termux", false)
+        val useCloud = intent.getBooleanExtra("use_cloud", false)
         val sessionId = intent.getStringExtra("session_id")
 
         if (useTermux && termuxBridge?.isTermuxInstalled() == true) {
@@ -60,6 +61,7 @@ class WebViewActivity : ComponentActivity() {
                     apiKey = apiKey,
                     sessionId = sessionId,
                     useTermux = useTermux,
+                    useCloud = useCloud,
                     onOpenSettings = {
                         startActivity(Intent(this@WebViewActivity, SettingsActivity::class.java))
                     },
@@ -106,6 +108,7 @@ fun WebViewScreen(
     apiKey: String,
     sessionId: String?,
     useTermux: Boolean,
+    useCloud: Boolean,
     onOpenSettings: () -> Unit,
     onOpenTermux: () -> Unit,
     onShareText: (String) -> Unit
@@ -175,7 +178,9 @@ fun WebViewScreen(
                         ) {
                             if (request?.isForMainFrame == true) {
                                 isLoading = false
-                                if (retryCount < 5) {
+                                if (useCloud) {
+                                    showError = true
+                                } else if (retryCount < 5) {
                                     retryCount++
                                     handler.postDelayed({
                                         showError = false
@@ -230,7 +235,11 @@ fun WebViewScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Connecting to OpenCode...")
+                    if (useCloud) {
+                        Text("Loading OpenCode...")
+                    } else {
+                        Text("Connecting to OpenCode...")
+                    }
                     if (retryCount > 0) {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
@@ -261,19 +270,23 @@ fun WebViewScreen(
                         tint = MaterialTheme.colorScheme.error
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "Cannot connect to OpenCode server",
-                        style = MaterialTheme.typography.headlineSmall
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    if (useTermux) {
+                    if (useCloud) {
                         Text(
-                            "OpenCode is starting in Termux. Make sure Termux is installed and has run the setup at least once.",
+                            "Cannot load OpenCode",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Check your internet connection and try again.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(horizontal = 16.dp)
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                         )
                     } else {
+                        Text(
+                            "Cannot connect to OpenCode server",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             "Make sure the server is running on $serverUrl",
                             style = MaterialTheme.typography.bodyMedium,
@@ -292,7 +305,7 @@ fun WebViewScreen(
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
-                    if (useTermux) {
+                    if (!useCloud && useTermux) {
                         OutlinedButton(onClick = onOpenTermux) {
                             Text("Open Termux")
                         }

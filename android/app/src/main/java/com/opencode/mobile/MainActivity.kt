@@ -70,9 +70,12 @@ class MainActivity : ComponentActivity() {
                             apply()
                         }
                         val provider = prefs.getString("selected_provider", "") ?: ""
-                        if (provider == "OpenCode Zen (Big Pickle)" || provider == "Ollama (Local)") {
+                        if (provider == "Ollama (Local)") {
                             prefs.edit().putBoolean("use_termux", true).apply()
                             navigateToTermux()
+                        } else if (provider == "OpenCode Zen (Big Pickle)") {
+                            prefs.edit().putBoolean("use_cloud", true).apply()
+                            navigateToWebView()
                         } else {
                             requestPermissions()
                         }
@@ -127,10 +130,16 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun navigateToWebView() {
-        val serverUrl = prefs.getString("server_url", "http://localhost:3000") ?: "http://localhost:3000"
+        val isCloud = prefs.getBoolean("use_cloud", false)
+        val serverUrl = if (isCloud) {
+            "https://opencode.ai"
+        } else {
+            prefs.getString("server_url", "http://localhost:3000") ?: "http://localhost:3000"
+        }
         val i = Intent(this, WebViewActivity::class.java).apply {
             putExtra("server_url", serverUrl)
             putExtra("api_key", prefs.getString("api_key", ""))
+            putExtra("use_cloud", isCloud)
         }
         startActivity(i)
         finish()
