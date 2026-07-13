@@ -66,7 +66,7 @@ class TermuxBridge(private val context: Context) {
             command = "/data/data/com.termux/files/usr/bin/bash",
             arguments = arrayOf(
                 "-c",
-                "source ~/.bashrc && opencode serve --port $port --hostname 127.0.0.1"
+                "source ~/.bashrc 2>/dev/null; opencode web --port $port --hostname 127.0.0.1"
             ),
             workingDir = workDir ?: "/data/data/com.termux/files/home",
             background = true,

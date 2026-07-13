@@ -5,6 +5,8 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -34,6 +35,7 @@ import java.net.URL
 class MainActivity : ComponentActivity() {
 
     private lateinit var prefs: SharedPreferences
+    private var termuxBridge: TermuxBridge? = null
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -46,62 +48,20 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = getSharedPreferences("opencode_prefs", Context.MODE_PRIVATE)
-
-        if (intent?.data?.scheme == "opencode") {
-            handleDeepLink(intent)
-            return
-        }
+        termuxBridge = TermuxBridge(this)
 
         setContent {
             MaterialTheme(
                 colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()
             ) {
-                ConnectScreen()
+                AppScreen()
             }
-        }
-    }
-
-    private fun handleDeepLink(intent: Intent) {
-        val data = intent.data
-        when (data?.host) {
-            "session" -> {
-                val sessionId = data.getQueryParameter("id")
-                val i = Intent(this, WebViewActivity::class.java).apply {
-                    putExtra("session_id", sessionId)
-                }
-                startActivity(i)
-                finish()
-            }
-            "settings" -> {
-                startActivity(Intent(this, SettingsActivity::class.java))
-                finish()
-            }
-        }
-    }
-
-    private fun requestPermissions() {
-        val permissions = mutableListOf<String>()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
-                != android.content.pm.PackageManager.PERMISSION_GRANTED
-            ) {
-                permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            permissions.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-        if (permissions.isNotEmpty()) {
-            requestPermissionLauncher.launch(permissions.toTypedArray())
-        } else {
-            navigateToWebView()
         }
     }
 
     private fun navigateToWebView() {
         val i = Intent(this, WebViewActivity::class.java).apply {
             putExtra("server_url", "http://localhost:3000")
-            putExtra("api_key", prefs.getString("api_key", ""))
         }
         startActivity(i)
         finish()
@@ -109,18 +69,26 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun ConnectScreen() {
+fun AppScreen() {
     val context = LocalContext.current
+    val activity = context as? MainActivity
+    val termuxBridge = remember { TermuxBridge(context) }
     val scope = rememberCoroutineScope()
-    var isConnecting by remember { mutableStateOf(false) }
+    val handler = remember { Handler(Looper.getMainLooper()) }
+
+    var phase by remember { mutableStateOf("checking") }
+    // checking, need_termux, installing, starting, connected, error
+    var statusText by remember { mutableStateOf("Checking setup...") }
+    var logOutput by remember { mutableStateOf("") }
     var isConnected by remember { mutableStateOf(false) }
-    var showError by remember { mutableStateOf(false) }
-    var attemptCount by remember { mutableIntStateOf(0) }
+    var retryCount by remember { mutableIntStateOf(0) }
+
+    fun appendLog(line: String) {
+        logOutput = logOutput + "\n" + line
+    }
 
     fun checkConnection() {
         scope.launch {
-            isConnecting = true
-            showError = false
             try {
                 val url = URL("http://localhost:3000")
                 val conn = url.openConnection() as HttpURLConnection
@@ -131,19 +99,89 @@ fun ConnectScreen() {
                 conn.disconnect()
                 if (code == 200 || code == 304) {
                     isConnected = true
-                    showError = false
+                    phase = "connected"
+                    statusText = "OpenCode is running!"
                 } else {
-                    showError = true
+                    isConnected = false
                 }
             } catch (e: Exception) {
-                showError = true
+                isConnected = false
             }
-            isConnecting = false
+        }
+    }
+
+    fun startServer() {
+        phase = "starting"
+        statusText = "Starting OpenCode server..."
+        appendLog("Starting opencode web server...")
+
+        termuxBridge.startOpenCodeServer()
+        appendLog("Server command sent to Termux")
+
+        retryCount = 0
+        handler.postDelayed(object : Runnable {
+            override fun run() {
+                checkConnection()
+                if (!isConnected && retryCount < 30) {
+                    retryCount++
+                    statusText = "Waiting for server... ($retryCount/30)"
+                    handler.postDelayed(this, 2000)
+                } else if (!isConnected) {
+                    phase = "error"
+                    statusText = "Server did not start. Open Termux to check."
+                }
+            }
+        }, 3000)
+    }
+
+    fun runSetup() {
+        phase = "installing"
+        statusText = "Installing OpenCode in Termux..."
+        appendLog("Running setup script in Termux...")
+
+        val setupScript = """
+            pkg install -y nodejs git 2>&1
+            npm i -g opencode-ai 2>&1
+            echo "SETUP_COMPLETE"
+        """.trimIndent()
+
+        termuxBridge.executeCommand(
+            command = "/data/data/com.termux/files/usr/bin/bash",
+            arguments = arrayOf("-c", setupScript),
+            background = true,
+            sessionAction = 1
+        )
+
+        appendLog("Setup commands sent. Waiting 60 seconds for install...")
+        statusText = "Installing packages (may take a minute)..."
+
+        handler.postDelayed({
+            val prefs = context.getSharedPreferences("opencode_prefs", Context.MODE_PRIVATE)
+            prefs.edit().putBoolean("setup_complete", true).apply()
+            appendLog("Setup marked as complete")
+            startServer()
+        }, 60000)
+    }
+
+    fun checkAndStart() {
+        val setupDone = context.getSharedPreferences("opencode_prefs", Context.MODE_PRIVATE)
+            .getBoolean("setup_complete", false)
+
+        if (!termuxBridge.isTermuxInstalled()) {
+            phase = "need_termux"
+            statusText = "Termux is required"
+            return
+        }
+
+        if (!setupDone) {
+            runSetup()
+        } else {
+            startServer()
         }
     }
 
     LaunchedEffect(Unit) {
-        checkConnection()
+        checkAndStart()
     }
 
     Scaffold(
@@ -165,190 +203,238 @@ fun ConnectScreen() {
                 modifier = Modifier.size(80.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "OpenCode Mobile",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "AI Coding Agent for Android",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("OpenCode", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("AI Coding Agent", fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            if (isConnected) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            when (phase) {
+                "connected" -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
                     ) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text("Server Connected!", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("OpenCode is running on localhost:3000", fontSize = 12.sp)
+                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text("Ready!", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("OpenCode is running", fontSize = 12.sp)
+                            }
                         }
                     }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            val intent = Intent(context, WebViewActivity::class.java).apply {
+                                putExtra("server_url", "http://localhost:3000")
+                            }
+                            context.startActivity(intent)
+                            (context as? ComponentActivity)?.finish()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Start Coding", fontSize = 16.sp)
+                    }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = {
-                        ContextCompat.startActivities(context, arrayOf(Intent(context, WebViewActivity::class.java).apply {
-                            putExtra("server_url", "http://localhost:3000")
-                        }))
-                    },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Open OpenCode", fontSize = 16.sp)
-                }
-            } else if (isConnecting) {
-                CircularProgressIndicator(modifier = Modifier.size(48.dp))
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Checking for OpenCode server...", fontSize = 14.sp)
-                if (attemptCount > 0) {
-                    Text("Attempt $attemptCount", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
-                }
-            } else if (showError) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Server not found", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+
+                "need_termux" -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Termux Required", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("OpenCode needs Termux to run on Android.", fontSize = 13.sp)
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Steps:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("1. Install Termux from F-Droid", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text("   (NOT Play Store - that version is broken)", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("2. Come back to this app", fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text("   It will install everything automatically", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://f-droid.org/en/packages/com.termux/"))
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Download Termux from F-Droid")
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            phase = "checking"
+                            statusText = "Checking again..."
+                            checkAndStart()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("I installed Termux - Check again")
+                    }
+                }
+
+                "installing", "starting" -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(statusText, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+                            }
+                            if (logOutput.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surface) {
+                                    Text(
+                                        text = logOutput.trim(),
+                                        modifier = Modifier.padding(8.dp),
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        maxLines = 15
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    if (phase == "installing") {
                         Text(
-                            "OpenCode server is not running on localhost:3000. You need to install and start it in Termux first.",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            "This takes about 1 minute. Don't close the app.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Text("Setup Instructions", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth())
-                Spacer(modifier = Modifier.height(12.dp))
-
-                SetupStep("1", "Install Termux", "Download from F-Droid (NOT Play Store)")
-                SetupStep("2", "Open Termux and install Node.js", "pkg install nodejs git")
-                SetupStep("3", "Install OpenCode", "npm i -g opencode-ai")
-                SetupStep("4", "Start OpenCode web server", "opencode web --port 3000 --hostname 127.0.0.1")
-                SetupStep("5", "Come back here and tap Retry", "The app will connect automatically")
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("Full Termux Commands:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surface) {
-                            Text(
-                                text = "pkg install nodejs git\nnpm i -g opencode-ai\nopencode web --port 3000 --hostname 127.0.0.1",
-                                modifier = Modifier.padding(12.dp),
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f))
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("After OpenCode starts:", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("\u2022 OpenCode will ask you to select a provider", fontSize = 12.sp)
-                        Text("\u2022 Choose \"OpenCode Zen\" for Big Pickle (free)", fontSize = 12.sp)
-                        Text("\u2022 Or configure your own API key", fontSize = 12.sp)
-                        Text("\u2022 The web UI will work exactly like on desktop", fontSize = 12.sp)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Button(
-                    onClick = {
-                        attemptCount++
-                        checkConnection()
-                    },
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.Refresh, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Retry Connection", fontSize = 16.sp)
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedButton(
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                            setClassName("com.termux", "com.termux.app.TermuxActivity")
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        try {
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            val intent2 = Intent(Intent.ACTION_VIEW).apply {
-                                data = android.net.Uri.parse("https://f-droid.org/en/packages/com.termux/")
+                "error" -> {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Server didn't start", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
-                            context.startActivity(intent2)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(statusText, fontSize = 13.sp)
+                            if (logOutput.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surface) {
+                                    Text(
+                                        text = logOutput.trim(),
+                                        modifier = Modifier.padding(8.dp),
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        maxLines = 15
+                                    )
+                                }
+                            }
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.Build, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Open Termux")
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Button(
+                        onClick = {
+                            phase = "checking"
+                            logOutput = ""
+                            checkAndStart()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Retry")
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                setClassName("com.termux", "com.termux.app.TermuxActivity")
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            try {
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                // Termux not installed
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Open Termux")
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = {
+                            val prefs = context.getSharedPreferences("opencode_prefs", Context.MODE_PRIVATE)
+                            prefs.edit().putBoolean("setup_complete", false).apply()
+                            phase = "checking"
+                            logOutput = ""
+                            checkAndStart()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Reset & Reinstall")
+                    }
+                }
+
+                else -> {
+                    CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(statusText, fontSize = 14.sp)
                 }
             }
 
             Spacer(modifier = Modifier.weight(1f))
-        }
-    }
-}
 
-@Composable
-fun SetupStep(number: String, title: String, command: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(number, color = MaterialTheme.colorScheme.onPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            if (phase == "connected") {
+                Text(
+                    "OpenCode runs locally on your device",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
+                )
             }
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.Medium, fontSize = 14.sp)
-            Text(command, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace)
         }
     }
 }
