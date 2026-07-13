@@ -76,6 +76,7 @@ fun AppScreen() {
     val context = LocalContext.current
     val termuxBridge = remember { TermuxBridge(context) }
     val scope = rememberCoroutineScope()
+    val prefs = remember { context.getSharedPreferences("opencode_prefs", Context.MODE_PRIVATE) }
 
     var step by remember { mutableIntStateOf(0) }
     // 0=checking, 1=need_termux, 2=need_permission, 3=installing, 4=starting, 5=ready, 6=error
