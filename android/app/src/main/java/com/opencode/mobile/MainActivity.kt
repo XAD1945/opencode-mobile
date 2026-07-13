@@ -13,7 +13,9 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -301,6 +303,58 @@ fun FeatureItem(icon: ImageVector, text: String) {
     }
 }
 
+data class ProviderInfo(
+    val name: String,
+    val isFree: Boolean,
+    val freeInfo: String,
+    val url: String
+)
+
+val providerInfoList = listOf(
+    ProviderInfo(
+        name = "Ollama (Local)",
+        isFree = true,
+        freeInfo = "100% free, runs on your device. No API key needed.",
+        url = "https://ollama.com"
+    ),
+    ProviderInfo(
+        name = "Google Gemini",
+        isFree = true,
+        freeInfo = "Free tier: 15 RPM, 1M tokens/day. Get key at aistudio.google.com",
+        url = "https://aistudio.google.com/apikey"
+    ),
+    ProviderInfo(
+        name = "Groq",
+        isFree = true,
+        freeInfo = "Free tier: 30 RPM, fast inference. Get key at console.groq.com",
+        url = "https://console.groq.com"
+    ),
+    ProviderInfo(
+        name = "GitHub Models",
+        isFree = true,
+        freeInfo = "Free with GitHub account. models.inference.ai.azure.com",
+        url = "https://models.inference.ai.azure.com"
+    ),
+    ProviderInfo(
+        name = "OpenAI",
+        isFree = false,
+        freeInfo = "Paid. GPT-4, o1, o3 models.",
+        url = "https://platform.openai.com"
+    ),
+    ProviderInfo(
+        name = "Anthropic",
+        isFree = false,
+        freeInfo = "Paid. Claude models.",
+        url = "https://console.anthropic.com"
+    ),
+    ProviderInfo(
+        name = "Custom",
+        isFree = false,
+        freeInfo = "Any OpenAI-compatible API (e.g. local server).",
+        url = ""
+    )
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProviderPage(
@@ -311,11 +365,14 @@ fun ProviderPage(
     serverUrl: String,
     onServerUrlChange: (String) -> Unit
 ) {
-    val providers = listOf("OpenAI", "Anthropic", "Google Gemini", "Ollama (Local)", "Custom")
+    val providerNames = providerInfoList.map { it.name }
     var expanded by remember { mutableStateOf(false) }
+    val selectedInfo = providerInfoList.find { it.name == selectedProvider }
 
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
@@ -325,10 +382,10 @@ fun ProviderPage(
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Choose your AI provider and enter your API key",
+            text = "Choose your AI provider",
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
         )
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         ExposedDropdownMenuBox(
             expanded = expanded,
@@ -349,14 +406,78 @@ fun ProviderPage(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                providers.forEach { provider ->
+                providerNames.forEach { name ->
+                    val info = providerInfoList.find { it.name == name }
                     DropdownMenuItem(
-                        text = { Text(provider) },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(name, modifier = Modifier.weight(1f))
+                                if (info?.isFree == true) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(4.dp),
+                                        color = MaterialTheme.colorScheme.primary
+                                    ) {
+                                        Text(
+                                            "FREE",
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            fontSize = 9.sp,
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        },
                         onClick = {
-                            onProviderChange(provider)
+                            onProviderChange(name)
                             expanded = false
                         }
                     )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        selectedInfo?.let { info ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (info.isFree)
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                    else
+                        MaterialTheme.colorScheme.surfaceVariant
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(
+                        if (info.isFree) Icons.Default.CheckCircle else Icons.Default.Info,
+                        contentDescription = null,
+                        tint = if (info.isFree) MaterialTheme.colorScheme.primary
+                               else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = info.freeInfo,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                        if (info.url.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = info.url,
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -375,7 +496,7 @@ fun ProviderPage(
         }
 
         if (selectedProvider == "Custom") {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             OutlinedTextField(
                 value = serverUrl,
                 onValueChange = onServerUrlChange,
@@ -399,7 +520,7 @@ fun ProviderPage(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Default.Info,
+                    Icons.Default.Security,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.size(20.dp)
@@ -475,9 +596,11 @@ fun ControlItem(title: String, description: String) {
 @Composable
 fun TermuxPage() {
     Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             imageVector = Icons.Default.Build,
@@ -485,64 +608,92 @@ fun TermuxPage() {
             modifier = Modifier.size(64.dp),
             tint = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Termux Mode",
+            text = "Free Options",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Run OpenCode directly in Termux for full terminal access",
+            text = "Use OpenCode without paying for API keys",
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
         )
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "In Termux, run:",
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 12.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Option 1: Termux + Ollama", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("1. Install Termux from F-Droid", fontSize = 12.sp)
+                Text("2. Run in Termux:", fontSize = 12.sp)
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.surface
                 ) {
                     Text(
-                        text = "curl -fsSL https://raw.githubusercontent.com/.../install.sh | bash",
+                        text = "pkg install ollama nodejs\nollama serve &\nollama pull qwen2.5-coder:7b\nopencode",
                         modifier = Modifier.padding(12.dp),
                         fontSize = 11.sp,
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                     )
                 }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Free, runs 100% on your phone", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 16.dp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            Icon(
-                Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Works without API key in the app",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-            )
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Cloud, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Option 2: Free Cloud APIs", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("No install needed, just get a free key:", fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("\u2022 Google Gemini: aistudio.google.com/apikey", fontSize = 11.sp)
+                Text("\u2022 Groq: console.groq.com (fastest)", fontSize = 11.sp)
+                Text("\u2022 GitHub Models: models.inference.ai.azure.com", fontSize = 11.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Free tier with rate limits, no credit card", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Computer, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Option 3: PC + Phone", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Run Ollama on your PC, connect from phone:", fontSize = 12.sp)
+                Text("1. Install Ollama on PC: ollama.com", fontSize = 12.sp)
+                Text("2. ollama serve --host 0.0.0.0", fontSize = 12.sp)
+                Text("3. In app, use Custom provider", fontSize = 12.sp)
+                Text("4. URL: http://YOUR-PC-IP:11434", fontSize = 12.sp)
+            }
         }
     }
 }

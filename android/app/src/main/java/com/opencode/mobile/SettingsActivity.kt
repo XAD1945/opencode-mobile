@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -89,7 +90,16 @@ fun SettingsScreen(prefs: android.content.SharedPreferences, onBack: () -> Unit)
 
             Text("Provider", fontWeight = FontWeight.Bold, fontSize = 18.sp)
 
-            val providers = listOf("OpenAI", "Anthropic", "Google Gemini", "Ollama (Local)", "Custom")
+            val providers = listOf(
+                "Ollama (Local)",
+                "Google Gemini",
+                "Groq",
+                "GitHub Models",
+                "OpenAI",
+                "Anthropic",
+                "Custom"
+            )
+            val freeProviders = listOf("Ollama (Local)", "Google Gemini", "Groq", "GitHub Models")
             var expanded by remember { mutableStateOf(false) }
 
             ExposedDropdownMenuBox(
@@ -112,7 +122,26 @@ fun SettingsScreen(prefs: android.content.SharedPreferences, onBack: () -> Unit)
                 ) {
                     providers.forEach { provider ->
                         DropdownMenuItem(
-                            text = { Text(provider) },
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(provider, modifier = Modifier.weight(1f))
+                                    if (provider in freeProviders) {
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Surface(
+                                            shape = RoundedCornerShape(4.dp),
+                                            color = MaterialTheme.colorScheme.primary
+                                        ) {
+                                            Text(
+                                                "FREE",
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                fontSize = 9.sp,
+                                                color = MaterialTheme.colorScheme.onPrimary,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            },
                             onClick = {
                                 selectedProvider = provider
                                 expanded = false
@@ -122,24 +151,47 @@ fun SettingsScreen(prefs: android.content.SharedPreferences, onBack: () -> Unit)
                 }
             }
 
-            OutlinedTextField(
-                value = apiKey,
-                onValueChange = { apiKey = it },
-                label = { Text("API Key") },
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
-                leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
-                trailingIcon = {
-                    IconButton(onClick = { showApiKey = !showApiKey }) {
-                        Icon(
-                            if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = "Toggle visibility"
-                        )
-                    }
-                },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-            )
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        "Free API Options",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    FreeOptionItem("Ollama", "Local, no API key needed")
+                    FreeOptionItem("Google Gemini", "aistudio.google.com/apikey")
+                    FreeOptionItem("Groq", "console.groq.com (fast)")
+                    FreeOptionItem("GitHub Models", "models.inference.ai.azure.com")
+                }
+            }
+
+            if (selectedProvider != "Ollama (Local)") {
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = { apiKey = it },
+                    label = { Text("API Key") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                    leadingIcon = { Icon(Icons.Default.Key, contentDescription = null) },
+                    trailingIcon = {
+                        IconButton(onClick = { showApiKey = !showApiKey }) {
+                            Icon(
+                                if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = "Toggle visibility"
+                            )
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+                )
+            }
 
             HorizontalDivider()
 
@@ -203,5 +255,25 @@ fun SettingsScreen(prefs: android.content.SharedPreferences, onBack: () -> Unit)
 
             Spacer(modifier = Modifier.height(32.dp))
         }
+    }
+}
+
+@Composable
+fun FreeOptionItem(name: String, description: String) {
+    Row(
+        modifier = Modifier.padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "\u2022 $name: ",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+        )
+        Text(
+            text = description,
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
     }
 }
