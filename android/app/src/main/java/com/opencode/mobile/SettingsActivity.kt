@@ -165,7 +165,7 @@ fun SettingsScreen(prefs: android.content.SharedPreferences, onBack: () -> Unit)
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    FreeOptionItem("Ollama", "Local, no API key needed")
+                    FreeOptionItem("Ollama", "Local via Termux (no Android APK)")
                     FreeOptionItem("Google Gemini", "aistudio.google.com/apikey")
                     FreeOptionItem("Groq", "console.groq.com (fast)")
                     FreeOptionItem("GitHub Models", "models.inference.ai.azure.com")

@@ -314,7 +314,7 @@ val providerInfoList = listOf(
     ProviderInfo(
         name = "Ollama (Local)",
         isFree = true,
-        freeInfo = "100% free, runs on your device. No API key needed.",
+        freeInfo = "100% free. Requires Termux + proot Ubuntu (no native Android app).",
         url = "https://ollama.com"
     ),
     ProviderInfo(
@@ -632,23 +632,67 @@ fun TermuxPage() {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Option 1: Termux + Ollama", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Text(
+                        "Works on Android via Termux",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("1. Install Termux from F-Droid", fontSize = 12.sp)
-                Text("2. Run in Termux:", fontSize = 12.sp)
+                Text("1. Install Termux from F-Droid (not Play Store)", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Text("2. In Termux, install Ubuntu:", fontSize = 12.sp)
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.surface
                 ) {
                     Text(
-                        text = "pkg install ollama nodejs\nollama serve &\nollama pull qwen2.5-coder:7b\nopencode",
+                        text = "pkg install proot-distro\nproot-distro install ubuntu\nproot-distro login ubuntu",
                         modifier = Modifier.padding(12.dp),
                         fontSize = 11.sp,
                         fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text("Free, runs 100% on your phone", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("3. Inside Ubuntu, install Ollama:", fontSize = 12.sp)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Text(
+                        text = "curl -fsSL https://ollama.com/install.sh | sh\nollama serve &\nollama pull qwen2.5-coder:7b",
+                        modifier = Modifier.padding(12.dp),
+                        fontSize = 11.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("4. Install Node.js in Termux:", fontSize = 12.sp)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Text(
+                        text = "pkg install nodejs\nnpm i -g opencode-ai\nopencode",
+                        modifier = Modifier.padding(12.dp),
+                        fontSize = 11.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Free, runs 100% on your phone", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                }
             }
         }
 
@@ -664,14 +708,35 @@ fun TermuxPage() {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Option 2: Free Cloud APIs", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Text(
+                        "No install needed",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("No install needed, just get a free key:", fontSize = 12.sp)
+                Text("Just get a free API key:", fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("\u2022 Google Gemini: aistudio.google.com/apikey", fontSize = 11.sp)
-                Text("\u2022 Groq: console.groq.com (fastest)", fontSize = 11.sp)
-                Text("\u2022 GitHub Models: models.inference.ai.azure.com", fontSize = 11.sp)
+                Text("\u2022 Google Gemini: aistudio.google.com/apikey", fontSize = 12.sp)
+                Text("   Free: 15 RPM, 1M tokens/day", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("Free tier with rate limits, no credit card", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                Text("\u2022 Groq: console.groq.com", fontSize = 12.sp)
+                Text("   Free: 30 RPM, fastest inference", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("\u2022 GitHub Models: models.inference.ai.azure.com", fontSize = 12.sp)
+                Text("   Free with any GitHub account", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("No credit card required", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                }
             }
         }
 
@@ -687,12 +752,55 @@ fun TermuxPage() {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Option 3: PC + Phone", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer
+                ) {
+                    Text(
+                        "Best performance",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Run Ollama on your PC, connect from phone:", fontSize = 12.sp)
-                Text("1. Install Ollama on PC: ollama.com", fontSize = 12.sp)
-                Text("2. ollama serve --host 0.0.0.0", fontSize = 12.sp)
-                Text("3. In app, use Custom provider", fontSize = 12.sp)
-                Text("4. URL: http://YOUR-PC-IP:11434", fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("1. Install Ollama on PC: ollama.com/download", fontSize = 12.sp)
+                Text("2. Start with: ollama serve --host 0.0.0.0", fontSize = 12.sp)
+                Text("3. Find your PC IP: ipconfig (Win) / ifconfig (Mac/Linux)", fontSize = 12.sp)
+                Text("4. In this app, select Custom provider", fontSize = 12.sp)
+                Text("5. URL: http://YOUR-PC-IP:11434/v1", fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Run any model, full power of your PC", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f))
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text("Note: Ollama has no official Android app", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text(
+                        "Ollama only works on Android through Termux (Option 1) or by connecting to a PC (Option 3). For easiest setup, use Option 2 (free cloud APIs).",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
             }
         }
     }
