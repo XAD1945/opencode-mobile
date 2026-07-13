@@ -9,16 +9,10 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -27,10 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,7 +34,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var prefs: SharedPreferences
 
     private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
+        androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val allGranted = permissions.values.all { it }
         if (allGranted) {
@@ -286,7 +277,7 @@ fun WelcomePage() {
             Column(modifier = Modifier.padding(16.dp)) {
                 FeatureItem(icon = Icons.Default.SmartToy, text = "Multi-provider AI support")
                 FeatureItem(icon = Icons.Default.Edit, text = "Code editing & generation")
-                FeatureItem(icon = Icons.Default.Terminal, text = "Shell command execution")
+                FeatureItem(icon = Icons.Default.Build, text = "Shell command execution")
                 FeatureItem(icon = Icons.Default.PhoneAndroid, text = "Optimized for mobile")
             }
         }
@@ -449,7 +440,7 @@ fun ControlsPage() {
             Column(modifier = Modifier.padding(16.dp)) {
                 ControlItem(
                     title = "Virtual Keyboard Bar",
-                    description = "Ctrl, Alt, Tab, Esc, arrows — always above your keyboard"
+                    description = "Ctrl, Alt, Tab, Esc, arrows - always above your keyboard"
                 )
                 ControlItem(
                     title = "Gesture Navigation",
@@ -489,7 +480,7 @@ fun TermuxPage() {
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Default.Terminal,
+            imageVector = Icons.Default.Build,
             contentDescription = null,
             modifier = Modifier.size(64.dp),
             tint = MaterialTheme.colorScheme.primary

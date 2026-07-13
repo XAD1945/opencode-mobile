@@ -1,27 +1,20 @@
 package com.opencode.mobile
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.view.View
-import android.view.inputmethod.InputMethodManager
 import android.webkit.*
-import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -29,20 +22,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
 
 class WebViewActivity : ComponentActivity() {
 
     private var webView: WebView? = null
-    private lateinit var termuxBridge: TermuxBridge
+    private var termuxBridge: TermuxBridge? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,14 +44,15 @@ class WebViewActivity : ComponentActivity() {
         val useTermux = intent.getBooleanExtra("use_termux", false)
         val sessionId = intent.getStringExtra("session_id")
 
-        if (useTermux && termuxBridge.isTermuxInstalled()) {
-            termuxBridge.startOpenCodeServer()
+        if (useTermux && termuxBridge?.isTermuxInstalled() == true) {
+            termuxBridge?.startOpenCodeServer()
         }
 
         setContent {
             MaterialTheme(
                 colorScheme = if (isSystemInDarkTheme()) darkColorScheme() else lightColorScheme()
             ) {
+                val bridge = termuxBridge
                 WebViewScreen(
                     serverUrl = serverUrl,
                     apiKey = apiKey,
@@ -72,7 +62,7 @@ class WebViewActivity : ComponentActivity() {
                         startActivity(Intent(this@WebViewActivity, SettingsActivity::class.java))
                     },
                     onOpenTermux = {
-                        termuxBridge.openTermuxSession()
+                        bridge?.openTermuxSession()
                     },
                     onShareText = { text ->
                         shareText(text)
@@ -91,10 +81,12 @@ class WebViewActivity : ComponentActivity() {
         startActivity(Intent.createChooser(intent, "Share code"))
     }
 
+    @Deprecated("Use OnBackPressedCallback instead")
     override fun onBackPressed() {
         if (webView?.canGoBack() == true) {
             webView?.goBack()
         } else {
+            @Suppress("DEPRECATION")
             super.onBackPressed()
         }
     }
@@ -114,7 +106,7 @@ fun WebViewScreen(
     useTermux: Boolean,
     onOpenSettings: () -> Unit,
     onOpenTermux: () -> Unit,
-    onShareText: () -> Unit
+    onShareText: (String) -> Unit
 ) {
     val context = LocalContext.current
     var isLoading by remember { mutableStateOf(true) }
@@ -141,7 +133,6 @@ fun WebViewScreen(
                         mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                         cacheMode = WebSettings.LOAD_DEFAULT
                         mediaPlaybackRequiresUserGesture = false
-
                         userAgentString = "${userAgentString} OpenCodeMobile/1.0"
                     }
 
@@ -215,7 +206,7 @@ fun WebViewScreen(
                     modifier = Modifier.padding(32.dp)
                 ) {
                     Icon(
-                        Icons.Default.CloudOff,
+                        Icons.Default.Warning,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.error
@@ -233,16 +224,12 @@ fun WebViewScreen(
                     )
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    if (useTermux) {
-                        Button(onClick = {
-                            termuxBridge = TermuxBridge(context)
-                            termuxBridge.startOpenCodeServer()
-                            showError = false
-                            isLoading = true
-                            webViewRef?.reload()
-                        }) {
-                            Text("Start Server")
-                        }
+                    Button(onClick = {
+                        showError = false
+                        isLoading = true
+                        webViewRef?.reload()
+                    }) {
+                        Text("Retry")
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -290,7 +277,11 @@ fun FloatingActionBar(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
-                detectTapGestures { }
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent()
+                    }
+                }
             }
     ) {
         Column(
@@ -308,7 +299,7 @@ fun FloatingActionBar(
                     onClick = onTermux,
                     containerColor = MaterialTheme.colorScheme.secondaryContainer
                 ) {
-                    Icon(Icons.Default.Terminal, contentDescription = "Termux")
+                    Icon(Icons.Default.Build, contentDescription = "Termux")
                 }
                 SmallFloatingActionButton(
                     onClick = onRefresh,
@@ -341,7 +332,6 @@ fun FloatingActionBar(
     }
 }
 
-@JavascriptInterface
 class MobileBridge(private val context: Context) {
 
     @JavascriptInterface
@@ -378,6 +368,7 @@ class MobileBridge(private val context: Context) {
     @JavascriptInterface
     fun vibrate(durationMs: Int) {
         val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+        @Suppress("DEPRECATION")
         vibrator.vibrate(android.os.VibrationEffect.createOneShot(
             durationMs.toLong(),
             android.os.VibrationEffect.DEFAULT_AMPLITUDE
@@ -406,13 +397,8 @@ private fun injectMobileOverlay(webView: WebView?) {
                     background: rgba(128,128,128,0.3); 
                     border-radius: 2px; 
                 }
-                .mobile-kb-spacer { height: 52px; }
             `;
             document.head.appendChild(style);
-            
-            var spacer = document.createElement('div');
-            spacer.className = 'mobile-kb-spacer';
-            document.body.appendChild(spacer);
         })();
     """.trimIndent()
     webView?.evaluateJavascript(css, null)

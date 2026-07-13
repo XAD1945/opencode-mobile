@@ -1,13 +1,10 @@
 package com.opencode.mobile
 
 import android.annotation.SuppressLint
-import android.app.PendingIntent
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.util.Log
 
 class TermuxBridge(private val context: Context) {
@@ -37,8 +34,7 @@ class TermuxBridge(private val context: Context) {
         arguments: Array<String> = emptyArray(),
         workingDir: String? = null,
         background: Boolean = false,
-        sessionAction: Int = 0,
-        resultReceiver: BroadcastReceiver? = null
+        sessionAction: Int = 0
     ): Boolean {
         if (!isTermuxInstalled()) {
             Log.w(TAG, "Termux is not installed")
@@ -55,16 +51,6 @@ class TermuxBridge(private val context: Context) {
                 }
                 putExtra("$TERMUX_PACKAGE.RUN_COMMAND_BACKGROUND", background)
                 putExtra("$TERMUX_PACKAGE.RUN_COMMAND_SESSION_ACTION", sessionAction.toString())
-            }
-
-            if (resultReceiver != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val pendingIntent = PendingIntent.getBroadcast(
-                    context,
-                    System.currentTimeMillis().toInt(),
-                    resultReceiver,
-                    PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_MUTABLE
-                )
-                intent.putExtra("$TERMUX_PACKAGE.RUN_COMMAND_PENDING_INTENT", pendingIntent)
             }
 
             context.startService(intent)
