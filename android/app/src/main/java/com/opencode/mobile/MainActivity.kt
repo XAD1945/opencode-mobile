@@ -117,7 +117,7 @@ fun AppScreen() {
 
     fun pollServer() {
         var attempts = 0
-        val r = object : Runnable {
+        val checkRunnable = object : Runnable {
             override fun run() {
                 attempts++
                 statusText = "Waiting for server... ($attempts/40)"
@@ -139,7 +139,7 @@ fun AppScreen() {
                         step = 5
                         statusText = "Ready!"
                     } else if (attempts < 40) {
-                        handler.postDelayed(this@object, 2000)
+                        handler.postDelayed(checkRunnable, 2000)
                     } else {
                         step = 6
                         statusText = "Server did not start"
@@ -148,8 +148,8 @@ fun AppScreen() {
                 }
             }
         }
-        pollRunnable = r
-        handler.postDelayed(r, 3000)
+        pollRunnable = checkRunnable
+        handler.postDelayed(checkRunnable, 3000)
     }
 
     fun startServer() {
