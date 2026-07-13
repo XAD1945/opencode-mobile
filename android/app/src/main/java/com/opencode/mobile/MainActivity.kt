@@ -150,7 +150,7 @@ fun SetupWizard(
     val pagerState = rememberPagerState(pageCount = { 4 })
     val scope = rememberCoroutineScope()
 
-    val providers = listOf("OpenAI", "Anthropic", "Google Gemini", "Ollama (Local)", "Custom")
+    val providers = listOf("OpenCode Zen (Big Pickle)", "OpenAI", "Anthropic", "Google Gemini", "Ollama (Local)", "Custom")
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -311,6 +311,12 @@ data class ProviderInfo(
 )
 
 val providerInfoList = listOf(
+    ProviderInfo(
+        name = "OpenCode Zen (Big Pickle)",
+        isFree = true,
+        freeInfo = "Free model by OpenCode team. 200K context, tool calling, reasoning. No API key needed.",
+        url = "https://opencode.ai"
+    ),
     ProviderInfo(
         name = "Ollama (Local)",
         isFree = true,
@@ -484,7 +490,7 @@ fun ProviderPage(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (selectedProvider != "Ollama (Local)") {
+        if (selectedProvider != "Ollama (Local)" && selectedProvider != "OpenCode Zen (Big Pickle)") {
             OutlinedTextField(
                 value = apiKey,
                 onValueChange = onApiKeyChange,
@@ -532,6 +538,74 @@ fun ProviderPage(
                     color = MaterialTheme.colorScheme.onTertiaryContainer
                 )
             }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (selectedProvider == "OpenCode Zen (Big Pickle)") {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Big Pickle", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.tertiary) {
+                            Text(" FREE", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 10.sp, color = MaterialTheme.colorScheme.onTertiary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Model provided by OpenCode Zen team", fontSize = 12.sp, color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Features:", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text("\u2022 200K context window", fontSize = 12.sp)
+                    Text("\u2022 Tool calling support", fontSize = 12.sp)
+                    Text("\u2022 Reasoning capabilities", fontSize = 12.sp)
+                    Text("\u2022 Based on DeepSeek v4 Flash", fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surface) {
+                        Text("No API key required - just select this provider and start coding!", modifier = Modifier.padding(12.dp), fontSize = 11.sp)
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        if (selectedProvider == "Ollama (Local)") {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Ollama", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.tertiary) {
+                            Text(" FREE", modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), fontSize = 10.sp, color = MaterialTheme.colorScheme.onTertiary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("100% free, runs on device via Termux + proot Ubuntu. No Android APK available.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Setup steps:", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("1. Install Termux from F-Droid (not Play Store)", fontSize = 12.sp)
+                    Text("2. In Termux: pkg install proot-distro", fontSize = 12.sp)
+                    Text("3. proot-distro install ubuntu && proot-distro login ubuntu", fontSize = 12.sp)
+                    Text("4. In Ubuntu: curl -fsSL https://ollama.com/install.sh | sh", fontSize = 12.sp)
+                    Text("5. ollama serve & then ollama pull qwen2.5-coder:7b", fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                        Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                            Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("No Android APK available. Best models: qwen2.5-coder:7b, codellama:7b", fontSize = 10.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }
@@ -624,13 +698,38 @@ fun TermuxPage() {
 
         Card(
             modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Recommended: Big Pickle (Free)", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(shape = RoundedCornerShape(4.dp), color = MaterialTheme.colorScheme.tertiary) {
+                    Text(" EASIEST", modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), fontSize = 10.sp, color = MaterialTheme.colorScheme.onTertiary, fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("1. Select \"OpenCode Zen (Big Pickle)\" as provider", fontSize = 12.sp)
+                Text("2. No API key needed", fontSize = 12.sp)
+                Text("3. Start coding immediately!", fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(6.dp))
+                Text("200K context, tool calling, reasoning - all free", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Option 1: Termux + Ollama", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Option 2: Termux + Ollama", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Surface(
@@ -706,7 +805,7 @@ fun TermuxPage() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Cloud, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Option 2: Free Cloud APIs", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Option 3: Free Cloud APIs", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Surface(
@@ -750,7 +849,7 @@ fun TermuxPage() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Computer, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Option 3: PC + Phone", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("Option 4: PC + Phone", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Surface(
@@ -794,9 +893,9 @@ fun TermuxPage() {
                 Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
-                    Text("Note: Ollama has no official Android app", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text("Easiest option: Big Pickle (Option 1 above)", fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     Text(
-                        "Ollama only works on Android through Termux (Option 1) or by connecting to a PC (Option 3). For easiest setup, use Option 2 (free cloud APIs).",
+                        "Big Pickle is free, no API key needed. For local models, use Ollama via Termux (Option 2) or connect to a PC (Option 4).",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )

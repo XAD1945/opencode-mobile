@@ -91,6 +91,7 @@ fun SettingsScreen(prefs: android.content.SharedPreferences, onBack: () -> Unit)
             Text("Provider", fontWeight = FontWeight.Bold, fontSize = 18.sp)
 
             val providers = listOf(
+                "OpenCode Zen (Big Pickle)",
                 "Ollama (Local)",
                 "Google Gemini",
                 "Groq",
@@ -99,7 +100,7 @@ fun SettingsScreen(prefs: android.content.SharedPreferences, onBack: () -> Unit)
                 "Anthropic",
                 "Custom"
             )
-            val freeProviders = listOf("Ollama (Local)", "Google Gemini", "Groq", "GitHub Models")
+            val freeProviders = listOf("OpenCode Zen (Big Pickle)", "Ollama (Local)", "Google Gemini", "Groq", "GitHub Models")
             var expanded by remember { mutableStateOf(false) }
 
             ExposedDropdownMenuBox(
@@ -165,6 +166,7 @@ fun SettingsScreen(prefs: android.content.SharedPreferences, onBack: () -> Unit)
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(6.dp))
+                    FreeOptionItem("Big Pickle", "opencode.ai - free, no key needed")
                     FreeOptionItem("Ollama", "Local via Termux (no Android APK)")
                     FreeOptionItem("Google Gemini", "aistudio.google.com/apikey")
                     FreeOptionItem("Groq", "console.groq.com (fast)")
@@ -172,7 +174,7 @@ fun SettingsScreen(prefs: android.content.SharedPreferences, onBack: () -> Unit)
                 }
             }
 
-            if (selectedProvider != "Ollama (Local)") {
+            if (selectedProvider != "Ollama (Local)" && selectedProvider != "OpenCode Zen (Big Pickle)") {
                 OutlinedTextField(
                     value = apiKey,
                     onValueChange = { apiKey = it },
