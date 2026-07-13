@@ -117,37 +117,39 @@ fun AppScreen() {
 
     fun pollServer() {
         var attempts = 0
-        val checkFn: () -> Unit = {
-            attempts++
-            statusText = "Waiting for server... ($attempts/40)"
-            scope.launch {
-                var serverUp = false
-                try {
-                    val url = URL("http://localhost:3000")
-                    val conn = url.openConnection() as HttpURLConnection
-                    conn.connectTimeout = 3000
-                    conn.readTimeout = 3000
-                    conn.connect()
-                    val code = conn.responseCode
-                    conn.disconnect()
-                    if (code in 200..399) {
-                        serverUp = true
+        val r = object : Runnable {
+            override fun run() {
+                attempts++
+                statusText = "Waiting for server... ($attempts/40)"
+                scope.launch {
+                    var serverUp = false
+                    try {
+                        val url = URL("http://localhost:3000")
+                        val conn = url.openConnection() as HttpURLConnection
+                        conn.connectTimeout = 3000
+                        conn.readTimeout = 3000
+                        conn.connect()
+                        val code = conn.responseCode
+                        conn.disconnect()
+                        if (code in 200..399) {
+                            serverUp = true
+                        }
+                    } catch (_: Exception) {}
+                    if (serverUp) {
+                        step = 5
+                        statusText = "Ready!"
+                    } else if (attempts < 40) {
+                        handler.postDelayed(this@object, 2000)
+                    } else {
+                        step = 6
+                        statusText = "Server did not start"
+                        log("Server failed to respond after 40 attempts")
                     }
-                } catch (_: Exception) {}
-                if (serverUp) {
-                    step = 5
-                    statusText = "Ready!"
-                } else if (attempts < 40) {
-                    handler.postDelayed({ checkFn() }, 2000)
-                } else {
-                    step = 6
-                    statusText = "Server did not start"
-                    log("Server failed to respond after 40 attempts")
                 }
             }
         }
-        pollRunnable = Runnable { checkFn() }
-        handler.postDelayed(pollRunnable!!, 3000)
+        pollRunnable = r
+        handler.postDelayed(r, 3000)
     }
 
     fun startServer() {
