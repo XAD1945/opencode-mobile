@@ -231,7 +231,7 @@ fun SetupWizard(
                                 onComplete(apiKey)
                             }
                         },
-                        enabled = if (currentPage == 1) apiKey.isNotBlank() else true
+                        enabled = if (currentPage == 1) (apiKey.isNotBlank() || selectedProvider == "OpenCode Zen (Big Pickle)" || selectedProvider == "Ollama (Local)") else true
                     ) {
                         Text(if (currentPage == 3) "Get Started" else "Next")
                         Spacer(modifier = Modifier.width(4.dp))
