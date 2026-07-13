@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.webkit.*
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -113,7 +115,21 @@ fun WebViewScreen(
     var showError by remember { mutableStateOf(false) }
     var showControls by remember { mutableStateOf(true) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
+    var startupPhase by remember { mutableStateOf(useTermux) }
+    var startupMessage by remember { mutableStateOf("Starting OpenCode in Termux...") }
+    var retryCount by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
+    val handler = remember { Handler(Looper.getMainLooper()) }
+
+    LaunchedEffect(useTermux) {
+        if (useTermux) {
+            startupMessage = "Installing dependencies in Termux..."
+            kotlinx.coroutines.delay(3000)
+            startupMessage = "Starting OpenCode server..."
+            kotlinx.coroutines.delay(3000)
+            startupPhase = false
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(
@@ -141,6 +157,8 @@ fun WebViewScreen(
                     webViewClient = object : WebViewClient() {
                         override fun onPageFinished(view: WebView?, url: String?) {
                             isLoading = false
+                            startupPhase = false
+                            retryCount = 0
                             injectMobileOverlay(view)
                             if (sessionId != null) {
                                 view?.evaluateJavascript(
@@ -156,8 +174,17 @@ fun WebViewScreen(
                             error: WebResourceError?
                         ) {
                             if (request?.isForMainFrame == true) {
-                                showError = true
                                 isLoading = false
+                                if (retryCount < 5) {
+                                    retryCount++
+                                    handler.postDelayed({
+                                        showError = false
+                                        isLoading = true
+                                        view?.reload()
+                                    }, 3000)
+                                } else {
+                                    showError = true
+                                }
                             }
                         }
                     }
@@ -168,18 +195,32 @@ fun WebViewScreen(
                         }
                     }
 
-                    val url = if (sessionId != null) {
-                        "$serverUrl/?session=$sessionId"
-                    } else {
-                        serverUrl
-                    }
-                    loadUrl(url)
+                    loadUrl(serverUrl)
                 }
             },
             modifier = Modifier.fillMaxSize()
         )
 
-        if (isLoading) {
+        if (startupPhase) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(startupMessage, style = MaterialTheme.typography.bodyLarge)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "This may take a few minutes on first run...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        } else if (isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -190,6 +231,14 @@ fun WebViewScreen(
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Connecting to OpenCode...")
+                    if (retryCount > 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Attempt $retryCount of 5...",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        )
+                    }
                 }
             }
         }
@@ -217,21 +266,37 @@ fun WebViewScreen(
                         style = MaterialTheme.typography.headlineSmall
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Make sure the server is running on $serverUrl",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                    )
+                    if (useTermux) {
+                        Text(
+                            "OpenCode is starting in Termux. Make sure Termux is installed and has run the setup at least once.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    } else {
+                        Text(
+                            "Make sure the server is running on $serverUrl",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        )
+                    }
                     Spacer(modifier = Modifier.height(24.dp))
 
                     Button(onClick = {
                         showError = false
                         isLoading = true
+                        retryCount = 0
                         webViewRef?.reload()
                     }) {
                         Text("Retry")
                     }
 
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (useTermux) {
+                        OutlinedButton(onClick = onOpenTermux) {
+                            Text("Open Termux")
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedButton(onClick = onOpenSettings) {
                         Text("Settings")

@@ -69,11 +69,20 @@ class MainActivity : ComponentActivity() {
                             putString("api_key", apiKey)
                             apply()
                         }
-                        requestPermissions()
+                        val provider = prefs.getString("selected_provider", "") ?: ""
+                        if (provider == "OpenCode Zen (Big Pickle)" || provider == "Ollama (Local)") {
+                            prefs.edit().putBoolean("use_termux", true).apply()
+                            navigateToTermux()
+                        } else {
+                            requestPermissions()
+                        }
                     },
                     onTermuxMode = {
                         prefs.edit().putBoolean("use_termux", true).apply()
                         navigateToTermux()
+                    },
+                    onProviderSelected = { provider ->
+                        prefs.edit().putString("selected_provider", provider).apply()
                     }
                 )
             }
@@ -141,12 +150,13 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun SetupWizard(
     onComplete: (String) -> Unit,
-    onTermuxMode: () -> Unit
+    onTermuxMode: () -> Unit,
+    onProviderSelected: (String) -> Unit = {}
 ) {
     var currentPage by remember { mutableIntStateOf(0) }
     var apiKey by remember { mutableStateOf("") }
     var serverUrl by remember { mutableStateOf("http://localhost:3000") }
-    var selectedProvider by remember { mutableStateOf("OpenAI") }
+    var selectedProvider by remember { mutableStateOf("OpenCode Zen (Big Pickle)") }
     val pagerState = rememberPagerState(pageCount = { 4 })
     val scope = rememberCoroutineScope()
 
@@ -181,7 +191,10 @@ fun SetupWizard(
                     0 -> WelcomePage()
                     1 -> ProviderPage(
                         selectedProvider = selectedProvider,
-                        onProviderChange = { selectedProvider = it },
+                        onProviderChange = { 
+                            selectedProvider = it
+                            onProviderSelected(it)
+                        },
                         apiKey = apiKey,
                         onApiKeyChange = { apiKey = it },
                         serverUrl = serverUrl,
