@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenCode Mobile</string>
+    <string name="settings">Settings</string>
+    <string name="server_url">Server URL</string>
+    <string name="api_key">API Key</string>
+    <string name="provider">AI Provider</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="connect">Connect</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="new_session">New Session</string>
+    <string name="open_termux">Open Termux</string>
+    <string name="refresh">Refresh</string>
+    <string name="share">Share</string>
+    <string name="copy">Copy</string>
+    <string name="paste">Paste</string>
+    <string name="select_all">Select All</string>
+    <string name="run_command">Run Command</string>
+    <string name="search_files">Search Files</string>
+    <string name="switch_agent">Switch Agent</string>
+    <string name="switch_model">Switch Model</string>
+    <string name="setup_wizard_title">Welcome to OpenCode Mobile</string>
+    <string name="setup_provider_title">Choose AI Provider</string>
+    <string name="setup_controls_title">Mobile Controls</string>
+    <string name="setup_complete_title">You\'re All Set!</string>
+    <string name="termux_mode">Termux Mode</string>
+    <string name="standalone_mode">Standalone Mode</string>
+</resources>

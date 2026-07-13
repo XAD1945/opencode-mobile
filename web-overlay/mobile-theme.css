@@ -1,0 +1,133 @@
+/**
+ * OpenCode Mobile - Theme Override
+ * Mobile-optimized styling for the OpenCode web UI
+ */
+
+(function() {
+    'use strict';
+
+    const STYLE_ID = 'oc-mobile-theme';
+
+    function injectStyles() {
+        if (document.getElementById(STYLE_ID)) return;
+        const style = document.createElement('style');
+        style.id = STYLE_ID;
+        style.textContent = `
+            :root {
+                --oc-mobile-kb-height: 48px;
+                --oc-mobile-safe-top: env(safe-area-inset-top, 0px);
+                --oc-mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
+            }
+
+            * {
+                -webkit-tap-highlight-color: transparent;
+            }
+
+            body {
+                padding-bottom: calc(var(--oc-mobile-kb-height) + var(--oc-mobile-safe-bottom)) !important;
+                overscroll-behavior: none;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            input, textarea, [contenteditable], [role="textbox"] {
+                font-size: 16px !important;
+                min-height: 44px;
+            }
+
+            button, [role="button"] {
+                min-height: 44px;
+                min-width: 44px;
+            }
+
+            [role="button"], button {
+                touch-action: manipulation;
+            }
+
+            pre, code, [class*="code-block"], [class*="highlight"] {
+                font-size: 13px !important;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                max-width: 100vw;
+            }
+
+            pre {
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+
+            ::-webkit-scrollbar {
+                width: 4px;
+                height: 4px;
+            }
+            ::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: rgba(128,128,128,0.3);
+                border-radius: 2px;
+            }
+
+            [class*="session"], [class*="chat"], [class*="message"] {
+                padding-left: 8px !important;
+                padding-right: 8px !important;
+            }
+
+            [class*="input"], [class*="prompt"], [class*="editor"] {
+                margin-bottom: var(--oc-mobile-kb-height) !important;
+            }
+
+            @media (orientation: landscape) {
+                body {
+                    padding-bottom: var(--oc-mobile-safe-bottom) !important;
+                }
+            }
+
+            @media (max-width: 600px) {
+                .desktop-only, [class*="sidebar"], [class*="panel-left"] {
+                    display: none !important;
+                }
+                
+                [class*="main"], [class*="content"] {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                }
+            }
+
+            @media (hover: none) and (pointer: coarse) {
+                ::selection {
+                    background: rgba(124, 77, 255, 0.3);
+                }
+                
+                [class*="hover"]:hover {
+                    background: inherit !important;
+                }
+            }
+
+            .mobile-text-select {
+                -webkit-user-select: text !important;
+                user-select: text !important;
+                -webkit-touch-callout: default !important;
+            }
+
+            @keyframes mobilePulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+            }
+
+            [class*="loading"], [class*="spinner"] {
+                animation: mobilePulse 1.5s ease-in-out infinite;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function init() {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', injectStyles);
+        } else {
+            injectStyles();
+        }
+    }
+
+    init();
+})();

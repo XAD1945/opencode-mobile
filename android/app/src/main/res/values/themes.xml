@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.OpenCodeMobile" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/opencode_purple</item>
+        <item name="colorPrimaryContainer">@color/opencode_purple</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

@@ -1,0 +1,44 @@
+# Built files
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/*.iml
+
+# Keystore
+*.jks
+*.keystore
+!debug.keystore
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Temporary
+/tmp/
+*.tmp
