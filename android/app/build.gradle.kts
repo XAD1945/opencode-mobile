@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.opencode.mobile"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.opencode.mobile"
